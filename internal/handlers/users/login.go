@@ -3,11 +3,14 @@ package handlers
 import (
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
-	usersRepositories "github.com/gaspartv/encurtador-de-url/internal/repositories/users"
+	"github.com/gaspartv/encurtador-de-url/internal/models"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 type LoginRequest struct {
@@ -24,13 +27,15 @@ func LoginUsersHandlers(ctx *gin.Context) {
 		return
 	}
 
-	user, err := usersRepositories.FindUserRepository(req.Email)
-	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch user"})
-		return
-	}
+	var user models.User
 
-	if req.Email != user.Email || req.Password != user.Password {
+	db := ctx.MustGet("db").(*gorm.DB)
+	query := db.Model(&models.User{})
+	query = query.Where("email ILIKE ?", req.Email)
+	query.Find(&user)
+
+	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
+	if !strings.EqualFold(req.Email, user.Email) || err != nil {
 		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
 		return
 	}
