@@ -14,7 +14,7 @@ CREATE UNIQUE INDEX idx_users_email ON users (email);
 CREATE OR REPLACE FUNCTION trigger_set_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = NOW();
+    NEW.updated_at = timezone('America/Sao_Paulo', now());
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

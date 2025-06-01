@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gaspartv/encurtador-de-url/internal/models"
@@ -23,43 +22,52 @@ func LoginUsersHandlers(ctx *gin.Context) {
 
 	var req LoginRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Payload inválido", "details": err.Error()})
 		return
 	}
 
 	var user models.User
-
 	db := ctx.MustGet("db").(*gorm.DB)
-	query := db.Model(&models.User{})
-	query = query.Where("email ILIKE ?", req.Email)
-	query.Find(&user)
 
-	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password))
-	if !strings.EqualFold(req.Email, user.Email) || err != nil {
-		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+	// Busca o usuário
+	err := db.Where("email ILIKE ?", req.Email).First(&user).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Credenciais inválidas"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Erro no banco de dados"})
 		return
 	}
 
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":    user.ID,
-		"email": req.Email,
-		"exp":   time.Now().Add(time.Hour * 24).Unix(),
-		"iat":   time.Now().Unix(),
-	})
-
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		secret = "secret"
+	// Validação da senha
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)); err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Credenciais inválidas"})
+		return
 	}
 
+	// Geração do token
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "JWT_SECRET não configurado"})
+		return
+	}
+
+	claims := jwt.MapClaims{
+		"id":    user.ID,
+		"email": user.Email,
+		"exp":   time.Now().Add(24 * time.Hour).Unix(),
+		"iat":   time.Now().Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 	tokenString, err := token.SignedString([]byte(secret))
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to generate token"})
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Falha ao gerar token"})
 		return
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
-		"token":   tokenString,
-		"message": "login successful",
+		"accessToken": tokenString,
 	})
 }

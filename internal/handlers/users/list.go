@@ -21,7 +21,7 @@ func ListUsersHandler(ctx *gin.Context) {
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
 	pageNumber, _ := strconv.Atoi(ctx.DefaultQuery("page_number", "1"))
 	sortBy := ctx.DefaultQuery("sort_by", "id")
-	sortOrder := strings.ToLower(ctx.DefaultQuery("sort_order", "asc"))
+	sortOrder := strings.ToLower(ctx.DefaultQuery("sort_order", "desc"))
 
 	if pageNumber < 1 {
 		pageNumber = 1
@@ -44,7 +44,7 @@ func ListUsersHandler(ctx *gin.Context) {
 		sortBy = "id"
 	}
 	if sortOrder != "asc" && sortOrder != "desc" {
-		sortOrder = "asc"
+		sortOrder = "desc"
 	}
 
 	db := ctx.MustGet("db").(*gorm.DB)
