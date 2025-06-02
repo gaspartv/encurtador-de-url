@@ -1,0 +1,2 @@
+migrate -path db/migrations -database "postgres://docker:docker@localhost:5432/encurtador_de_urls?sslmode=disable" up
+

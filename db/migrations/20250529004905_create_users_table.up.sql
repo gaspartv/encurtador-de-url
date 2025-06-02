@@ -9,7 +9,17 @@ CREATE TABLE users (
     disabled BOOLEAN DEFAULT FALSE
 );
 
+CREATE TABLE urls (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    original_url VARCHAR(2048) NOT NULL,
+    short_url VARCHAR(255) NOT NULL,
+    clicks INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE UNIQUE INDEX idx_users_email ON users (email);
+CREATE UNIQUE INDEX idx_urls_short_url ON urls (short_url);
 
 CREATE OR REPLACE FUNCTION trigger_set_timestamp()
 RETURNS TRIGGER AS $$
